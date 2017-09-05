@@ -1,0 +1,31 @@
+[cmdletbinding()]
+param(
+[parameter(ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true)]
+[string[]]$ComputerName = $env:computername,
+[parameter(mandatory=$true)]
+[string]$UserName
+
+)
+
+$Servers = get-content “c:\servers_2008.txt”
+
+foreach($Server in $Servers) {
+Write-host -ForegroundColor yellow “Checking on $Server for $Username profile”
+if(Test-Connection -ComputerName $Server -Count 1 -ea 0) {
+$UserProfile = Get-WmiObject Win32_UserProfile -Computer $Server -ea 0 -filter “localpath=’c:\\users\\$UserName'”
+if (!$UserProfile) {
+write-host -ForegroundColor gray “$Username not found on $Server”
+}
+else {
+write-host -ForegroundColor green “Deleting $Username profile from $Server”
+$UserProfile | Remove-WmiObject
+}
+}
+}
+
+$profilePath = get-item \\ProfilesServer\profiles\$Username*
+$profilePath = “$profilePath”
+write-host -ForegroundColor green “Removing $profilepath”
+takeown /f $profilePath /r /d y
+icacls $profilePath /grant administrators:F /t
+Remove-Item -Path $profilePath -Recurse -Force 
